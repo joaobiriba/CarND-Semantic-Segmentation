@@ -57,8 +57,65 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     :param num_classes: Number of classes to classify
     :return: The Tensor for the last layer of output
     """
-    # TODO: Implement function
-    return None
+    l2_value = 1e-3
+    kernel_reg = tf.contrib.layers.l2_regularizer(l2_value)
+    stddev = 1e-3
+    kernel_init = tf.random_normal_initializer(stddev=stddev)
+
+    conv_1x1_7 = tf.layers.conv2d(vgg_layer7_out, num_classes,
+                                  kernel_size=1,
+                                  strides=(1, 1),
+                                  padding='same',
+                                  kernel_regularizer=kernel_reg,
+                                  kernel_initializer=kernel_init)
+
+    tf.Print(conv_1x1_7, [tf.shape(conv_1x1_7)[1:3]])
+
+    conv7_2x = tf.layers.conv2d_transpose(conv_1x1_7, num_classes,
+                                          kernel_size=4,
+                                          strides=(2, 2),
+                                          padding='same',
+                                          kernel_regularizer=kernel_reg,
+                                          kernel_initializer=kernel_init)
+
+    
+    conv_1x1_4 = tf.layers.conv2d(vgg_layer4_out, num_classes,
+                                  kernel_size=1,
+                                  strides=(1, 1),
+                                  padding='same',
+                                  kernel_regularizer=kernel_reg,
+                                  kernel_initializer=kernel_init)
+
+    skip_4_to_7 = tf.add(conv7_2x, conv_1x1_4)
+
+    upsample2x_skip_4_to_7 = tf.layers.conv2d_transpose(skip_4_to_7, num_classes,
+                                                        kernel_size=4,
+                                                        strides=(2, 2),
+                                                        padding='same',
+                                                        kernel_regularizer=kernel_reg,
+                                                        kernel_initializer=kernel_init)
+
+  
+    conv_1x1_3 = tf.layers.conv2d(vgg_layer3_out, num_classes,
+                                  kernel_size=1,
+                                  strides=(1, 1),
+                                  padding='same',
+                                  kernel_regularizer=kernel_reg,
+                                  kernel_initializer=kernel_init)
+
+    skip_3 = tf.add(upsample2x_skip_4_to_7, conv_1x1_3)
+
+    output = tf.layers.conv2d_transpose(skip_3, num_classes,
+                                        kernel_size=16,
+                                        strides=(8, 8),
+                                        padding='same',
+                                        kernel_regularizer=kernel_reg,
+                                        kernel_initializer=kernel_init)
+
+    # Result shape
+    print('\n\nShape of output image = ', tf.Print(output, [tf.shape(output)[1:3]]))
+
+    return output
 tests.test_layers(layers)
 
 
